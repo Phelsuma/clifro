@@ -65,7 +65,8 @@ dly_rf_tbbl <- as.data.frame(daily.datalist) %>%
           # need to tidy names rename(c(date = , rain = )) %>% 
           select(date_local, amount_mm) %>% 
           rename(date = 'date_local', rain = 'amount_mm') 
-          
+
+# this wants to be alone          
 dly_rf_tbbl$date <- ymd_hm(dly_rf_tbbl$date)
 
 # add date info via lubridate
@@ -86,10 +87,15 @@ dates_rf <- dly_rf_tbbl %>%
 # explore data
 skimr::skim(dates_rf) # any NA values?
 
-
 # DATA VIZ 
-# Linegraphs rainfall
 
+# histogram 
+dates_rf %>%
+          ggplot()+
+          geom_histogram(aes(x = rain, fill = austrl_season), binwidth = 5)+
+          facet_wrap(~austrl_season)
+
+# Linegraphs rainfall
 # cumsum prcp by year 
 # will need to modify color for lots of years (eg maybe highlight a single year or color continuous by recent)
 # or could keep lines black and shade plot background to show season by julian days 
@@ -104,8 +110,6 @@ dates_rf %>%
                y = "cumulative rainfall (mm)",
                color = "Year") +
           theme_linedraw()
-
-
 
 # rainfall by year season color 
 dates_rf %>% 
@@ -124,23 +128,16 @@ dates_rf %>%
                     # solves with x = julian but that aint cute 
                     # need to make a date column without year (ie DD/MM, & group by year column)
 
-# graph 1 point with error bar wiskers for each month ?
-
-# histogram 
-dates_rf %>%
-          ggplot()+
-          geom_histogram(aes(x = rain, fill = austrl_season), binwidth = 5)+
-          facet_wrap(~austrl_season)
-
 # plot log of rainfall?
 dates_rf %>% 
-          # filter for days with rain
-          filter(rain > 0) %>% 
-          # SOLVED: still clumping issue showing all years on each facet with group_by(year) %>%
+          mutate(rain = (rain + 1)) %>% 
           ggplot()+
           geom_point(aes(x = julian, y = rain, size = rain, color = austrl_season), alpha = 0.7)+ # but using julian isntead of date does
-          facet_wrap(~year)
-# negative log issue from log of 0 issue above SOLVED by removing
+          scale_y_log10()+
+          facet_wrap(~year)+
+          labs(y = "(log) daily precip (mm)", color = "Austral season", x = "Julian day of year")+
+          theme_linedraw()+
+          scale_size(guide = 'none')
 # gosh this is ugly and not super informative
 
 # # viz monthly rainfall between years (log)
@@ -155,6 +152,19 @@ dates_rf %>%
           labs(title = "daily rainfall by month (Jan 2000 - Sept 2002)",x = "Year", y = "log monthly rainfall (mm)", fill = "Austral season") +
           theme_linedraw()
 
+# monthly rainfall totals across years 
+# this idea needs work...
+dates_rf %>% 
+          mutate(month = month(date, label = TRUE)) %>%
+          group_by(month, year) %>% 
+          mutate(sum_rain = sum(rain)) %>%  # want label for facets
+          ggplot()+
+          geom_line(aes(x = month, y = sum_rain))+
+          geom_point(aes(x = month, y = sum_rain, group = month, color = factor(year)))+
+          labs(y = "monthly total percipitation (mm)", x = "month", color = "year", title = "monthly percipitation by year (Jan 2000 - Sept 2002)")+
+          coord_flip()+
+          theme_linedraw()
+
 # daily rainfall by season for each year 
 dates_rf %>% 
           mutate(rain = (rain + 1)) %>% # add 1mm to each day to log, log(1) = 0 
@@ -165,7 +175,6 @@ dates_rf %>%
           labs(title = "daily rainfall by Austral season by year (Jan 2000 - Sept 2002)", x = "Year", y = "log daily rainfall (mm)") +
           theme_linedraw()+
           theme(legend.position = "none")
-
 
 
 
@@ -204,7 +213,6 @@ hm_data_nested <- dates_rf %>%
 
 # cool so now make matricies for all these fun little tibbles 
 matrix(hm_data_nested$data[[1]]$rain)     
-
 
 
 # # # STATISTICS # # # 
